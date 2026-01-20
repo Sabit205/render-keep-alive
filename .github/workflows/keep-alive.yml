@@ -2,7 +2,6 @@ name: Render Keep Alive
 
 on:
   schedule:
-    # Runs every 10 minutes
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
@@ -11,6 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send request to Render backend
+      - name: Ping Render backend with retry
         run: |
-          curl -s -o /dev/null -w "%{http_code}" https://wavenet-backend-1.onrender.com
+          URL="https://wavenet-backend-1.onrender.com"
+          ATTEMPTS=5
+          DELAY=10
+
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "Attempt $i..."
+
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo "000")
+
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+              echo "Backend is UP (status $STATUS)"
+              exit 0
+            fi
+
+            echo "Failed (status $STATUS), retrying in $DELAY seconds..."
+            sleep $DELAY
+          done
+
+          echo "Backend did not respond after $ATTEMPTS attempts."
+          exit 1
