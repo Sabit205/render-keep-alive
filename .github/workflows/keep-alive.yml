@@ -1,0 +1,16 @@
+name: Render Keep Alive
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send request to Render backend
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" https://wavenet-backend-1.onrender.com
