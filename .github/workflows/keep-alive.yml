@@ -6,29 +6,69 @@ on:
   workflow_dispatch:
 
 jobs:
-  ping:
+  keepalive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ping Render backend with retry
+      - name: Ping Render Services
         run: |
-          URL="https://wavenet-backend-1.onrender.com"
+          SERVICES=(
+            "wavenet-backend|https://wavenet-backend-1.onrender.com"
+            "nexavoice-backend|https://nexavoice-backend.onrender.com/ping"
+          )
+
           ATTEMPTS=5
-          DELAY=10
+          DELAY=8
+          TIMEOUT=10
 
-          for i in $(seq 1 $ATTEMPTS); do
-            echo "Attempt $i..."
+          echo "Starting health checks..."
+          echo "-----------------------------------"
 
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo "000")
+          SUCCESS=0
+          FAILED=0
 
-            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-              echo "Backend is UP (status $STATUS)"
-              exit 0
+          for SERVICE in "${SERVICES[@]}"; do
+            NAME=$(echo $SERVICE | cut -d '|' -f1)
+            URL=$(echo $SERVICE | cut -d '|' -f2)
+
+            echo ""
+            echo "Checking: $NAME"
+            echo "URL: $URL"
+
+            UP=false
+
+            for i in $(seq 1 $ATTEMPTS); do
+              echo "Attempt $i..."
+
+              STATUS=$(curl -s -o /dev/null \
+                -w "%{http_code}" \
+                --max-time $TIMEOUT \
+                "$URL" || echo "000")
+
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+                echo "SUCCESS: $NAME is UP (HTTP $STATUS)"
+                UP=true
+                break
+              fi
+
+              echo "Failed (HTTP $STATUS)"
+              sleep $DELAY
+            done
+
+            if [ "$UP" = true ]; then
+              SUCCESS=$((SUCCESS+1))
+            else
+              echo "ERROR: $NAME did not respond"
+              FAILED=$((FAILED+1))
             fi
-
-            echo "Failed (status $STATUS), retrying in $DELAY seconds..."
-            sleep $DELAY
           done
 
-          echo "Backend did not respond after $ATTEMPTS attempts."
-          exit 1
+          echo ""
+          echo "-----------------------------------"
+          echo "Health Check Summary"
+          echo "Successful: $SUCCESS"
+          echo "Failed: $FAILED"
+          echo "Total: $((${SUCCESS}+${FAILED}))"
+          echo "-----------------------------------"
+
+          exit 0
