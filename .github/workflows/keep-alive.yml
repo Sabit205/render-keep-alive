@@ -15,7 +15,7 @@ jobs:
           SERVICES=(
             "wavenet-backend|https://wavenet-backend-1.onrender.com"
             "nexavoice-backend|https://nexavoice-backend.onrender.com/ping"
-            "flicksync-backend|https://flicksync-backend.onrender.com/ping"
+            "flicksync-backend|https://flicksync-backend.onrender.com/api/ping"
           )
 
           ATTEMPTS=5
